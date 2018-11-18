@@ -8,7 +8,7 @@ import numpy
 numpy.random.seed(7)
 # load data
 
-skip_int = 0 # Used to get through the data quickly
+skip_int = 5800 # Used to get through the data quickly
 print("Loading Data starting at row", (skip_int + 1))
 
 quadrant = numpy.loadtxt("quadrant.csv", delimiter=",", skiprows = skip_int)

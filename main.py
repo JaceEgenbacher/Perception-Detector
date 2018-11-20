@@ -23,11 +23,12 @@ def load(skip_int) :
     return Xtrain,Ytrain,Xtest,Ytest
 
 
-save(skip_int) #you can comment this line to save time once you have saved it once
+save(skip_int) #you can comment this line to save time once you have saved it once to work on only the ML model
+#load the model
 Xtrain,Ytrain,Xtest,Ytest  = load(skip_int)
 
 
-# create model
+# create model, I didn't touch this part at all
 model = Sequential()
 model.add(Dense(512, input_dim=Xtrain.shape[1], activation='relu'))
 model.add(Dropout(0.5))
@@ -45,14 +46,15 @@ model.fit(Xtrain, Ytrain, epochs=20)
 # scores = model.evaluate(Xtest, Ytest)
 # print(model.metrics_names)
 # print("\n%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+#predict is with proba and we concat with the true result (Ytest)
 predict  = model.predict(Xtest, batch_size=None, verbose=0, steps=None)
 dfPredict  = pd.DataFrame(predict,columns =['pred'])
 results = pd.concat([dfPredict,Ytest.reset_index()],axis=1)
-
+#we get the TP and FP in the dataframe 'results'
 results['TP'] = (results.pred > 0.5) & (results.res == 1)
 results['FP'] = (results.pred > 0.5) & (results.res == 0)
 print('False positive',results[results['FP'] == True])
-#value_counts() [number of False, number of True]
+#value_counts() = [number of False, number of True]
 TP = results['TP'].value_counts()[True]
 #had an error when no FP so had to do a condition
 if True in results['FP'].value_counts().keys().tolist() :
@@ -63,4 +65,3 @@ precision = TP/(TP+FP)*100
 totalNbClassfied = TP + FP
 print('precision : ', precision)
 print('{0:d} classfied as TP ({1:d} TP and {2:d} FP) out of {3:d} samples ({4:d} CP and {5:d} CNP)'.format(totalNbClassfied,TP,FP,Ytest.size,Ytest.value_counts()[1],Ytest.value_counts()[0]))
-# ypred = model.predict_classes(test)

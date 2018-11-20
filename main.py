@@ -19,25 +19,17 @@ def save(skip_int) :
 def load(skip_int) :
     dataC = datasetCreation(skip_int = skip_int,reload = False)
     df = dataC.loadDataframe()
-    return df
+    Xtrain,Ytrain,Xtest,Ytest = dataC.produceSets(df)
+    return Xtrain,Ytrain,Xtest,Ytest
 
-t0 = time.time()
+
 save(skip_int) #you can comment this line to save time once you have saved it once
-df  = load(skip_int)
-condition = df.pop('res')
-X = df
-split = round((df.shape[0])*.9) #Used to split 90% for training
-train,test = df.iloc[:split], df.iloc[split:]
-train_outputs, test_outputs = condition[:split], condition[split:]
-print("Data split in : ", time.time() - t0 )
+Xtrain,Ytrain,Xtest,Ytest  = load(skip_int)
 
-# split into input (X) and output (Z) variables
-X = train
-Z = train_outputs
 
 # create model
 model = Sequential()
-model.add(Dense(512, input_dim=X.shape[1], activation='relu'))
+model.add(Dense(512, input_dim=Xtrain.shape[1], activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(512, activation = 'relu'))
 model.add(Dropout(0.5))
@@ -48,8 +40,27 @@ model.summary()
 sgd = optimizers.SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
 model.compile(loss='binary_crossentropy', optimizer=sgd , metrics=['accuracy'])
 
-model.fit(X, Z, epochs=100, batch_size=1000)
+model.fit(Xtrain, Ytrain, epochs=20)
 
-scores = model.evaluate(test, test_outputs)
+# scores = model.evaluate(Xtest, Ytest)
+# print(model.metrics_names)
+# print("\n%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+predict  = model.predict(Xtest, batch_size=None, verbose=0, steps=None)
+dfPredict  = pd.DataFrame(predict,columns =['pred'])
+results = pd.concat([dfPredict,Ytest.reset_index()],axis=1)
 
-print("\n%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+results['TP'] = (results.pred > 0.5) & (results.res == 1)
+results['FP'] = (results.pred > 0.5) & (results.res == 0)
+print('False positive',results[results['FP'] == True])
+#value_counts() [number of False, number of True]
+TP = results['TP'].value_counts()[True]
+#had an error when no FP so had to do a condition
+if True in results['FP'].value_counts().keys().tolist() :
+    FP = results['FP'].value_counts()[True]
+else :
+    FP = 0
+precision = TP/(TP+FP)*100
+totalNbClassfied = TP + FP
+print('precision : ', precision)
+print('{0:d} classfied as TP ({1:d} TP and {2:d} FP) out of {3:d} samples ({4:d} CP and {5:d} CNP)'.format(totalNbClassfied,TP,FP,Ytest.size,Ytest.value_counts()[1],Ytest.value_counts()[0]))
+# ypred = model.predict_classes(test)

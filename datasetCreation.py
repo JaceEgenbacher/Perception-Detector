@@ -1,17 +1,17 @@
 import pandas as pd
 import numpy as np
 import time
+#can be used to crossvalidation
 from sklearn.utils import shuffle
 from sklearn.cluster import KMeans
-#Screen dimensions : 1280,768 --> replace incoherent values by the middle of the screen
+
+#I created a class
 class datasetCreation :
 
     def __init__(self,skip_int = 0,reload = False) :
+        ''' here I initialize by just loading the csv between 6s and 9s (6s = where the face shows)'''
         if reload == True :
             tBeforeL = time.time()
-            # self.quadrant = pd.read_csv("quadrant.csv", sep=",",header = None, skiprows = skip_int, names  = ['quadrant'])
-            # self.rawGazeLX= pd.read_csv("rawGazeLX.csv", sep=",",header = None, skiprows = skip_int,usecols = [*range(6000,9000)])
-            # self.rawGazeLY = pd.read_csv("rawGazeRX.csv", sep=",",header = None, skiprows = skip_int,usecols = [*range(6000,9000)])
             self.rawBlinkLogicalL = pd.read_csv("rawBlinkLogicalL.csv",header = None, sep=",", skiprows = skip_int,usecols = [*range(6000,9000)])
             self.microsaccadeBinoc = pd.read_csv("microsaccadeBinoc.csv",header = None, sep=",", skiprows = skip_int,usecols = [*range(6000,9000)])
             self.interpPupilL = pd.read_csv("interpPupilL.csv", sep=",",header = None, skiprows = skip_int,usecols = [*range(6000,9000)])
@@ -19,56 +19,41 @@ class datasetCreation :
             tAfterL = time.time()
             print('finished loading in : ', tAfterL - tBeforeL)
 
-
-
-    def fillIncohrences(self,df) :
-        for index, row in df.iterrows():
-            row = row.replace(to_replace = 100000000.0, value = np.NaN)
-            mean = row.mean(axis=0,skipna = True)
-            row = row.fillna(mean)
-            df.at[index] = row
-        return df
-
     def replaceBlink(self,value):
         if value == 0 :
             return 0
         else :
             return 1
-    def replaceQuartiles(self,value,q1,median,q4) :
-        if value < q1 :
-            return 0
-        elif value <= median and value > q1:
-            return 1
-        elif value <= q4 and value > median :
-            return 2
-        else :
-            return 3
+
+
 
     def datasetCreation(self):
+        ''' key function : we take the mean of blink,microssacade and interPupilL,
+        use K-means on them to find what influences the most CNP or CP and classify according to the value'''
         tBeforeC = time.time()
-        #self.rawGazeLX = self.fillIncohrences(self.rawGazeLX)
-        #self.rawGazeLY = self.fillIncohrences(self.rawGazeLY)
+        #replace CP by 1 and CNP by 0
         self.condition[self.condition['res']=='CP'] = 1
         self.condition[self.condition['res']=='CNP'] = 0
+        #those 3 csv are just sumed up in 1 value which is the average
         self.rawBlinkLogicalL = self.rawBlinkLogicalL.groupby(np.arange(len(self.rawBlinkLogicalL.columns))//3000, axis=1).mean()*100
         self.microsaccadeBinoc = self.microsaccadeBinoc.groupby(np.arange(len(self.microsaccadeBinoc.columns))//3000, axis=1).mean()*100
         self.interpPupilL = self.interpPupilL.groupby(np.arange(len(self.interpPupilL.columns))//3000, axis=1).mean()
+        #merge the 3 values and the result in df
         df = pd.concat([self.rawBlinkLogicalL,self.microsaccadeBinoc,self.interpPupilL,self.condition],axis=1,join = 'inner')
+        #rename the columns beacause it is easier to manipulate
         df.columns = ['blink','microssacade','interPupil','res']
+        #I use a first classification before K-means bc when you don't blink you have way less chances to be CP
         df['blink'] = df['blink'].apply(self.replaceBlink)
+        #we use kmeans here on every columnn one by one, the number of clusters is chosen by me (I look what seems the best)
         Xb,Xm,Xi = df[['blink','res']],df[['microssacade','res']],df[['interPupil','res']]
         kmeansb,kmeansm,kmeansi = KMeans(n_clusters=3, random_state=0).fit(Xb),KMeans(n_clusters=4, random_state=0).fit(Xm),KMeans(n_clusters=4, random_state=0).fit(Xi)
         df['blink'] = kmeansb.predict(Xb)
         df['microssacade'] = kmeansm.predict(Xm)
         df['interPupil'] = kmeansi.predict(Xi)
+        #print the centers to analyze bad points later
         print('kmeansB',kmeansb.cluster_centers_)
         print('kmeansM',kmeansm.cluster_centers_)
         print('kmeansI',kmeansi.cluster_centers_)
-        # q1M,q1I = df['microssacade'].quantile(0.25),df['interPupil'].quantile(0.25)
-        # medianM,medianI = df['microssacade'].quantile(0.5),df['interPupil'].quantile(0.5)
-        # q4M,q4I = df['microssacade'].quantile(0.75),df['interPupil'].quantile(0.75)
-        # df['microssacade'] = df['microssacade'].apply(self.replaceQuartiles,args = (q1M,medianM,q4M))
-        # df['interPupil'] = df['interPupil'].apply(self.replaceQuartiles,args = (q1I,medianI,q4I))
         tAfterC = time.time()
         print('finished cleaning in : ', tAfterC - tBeforeC)
         return df
@@ -87,6 +72,7 @@ class datasetCreation :
         return df
 
     def produceSets(self,df):
+        '''the dataset has way more CP than CNP so we want to train/test on the same amount of CP than CNP'''
         dfCP = df[df['res'] == 1]
         dfCNP = df[df['res'] == 0]
         # dfCP = shuffle(dfCP)
@@ -99,25 +85,15 @@ class datasetCreation :
         Ytrain = Xtrain['res']
         Xtrain = Xtrain.drop('res',axis =1)
         testCNP = dfCNP.iloc[split:]
-        #we want as much CP as CNP
-        rowNb = testCNP.shape[0]
-        testCP = dfCP.iloc[split:split + rowNb]
+        #we want as much CP as CNP (little trick here)
+        rowNbCNP = testCNP.shape[0]
+        testCP = dfCP.iloc[split:split + rowNbCNP]
         Xtest = pd.concat([testCP,testCNP])
         Ytest = Xtest['res']
         Xtest = Xtest.drop('res',axis =1)
         return Xtrain,Ytrain,Xtest,Ytest
-# def replaceBlink(value):
-#     if value == 0 :
-#         return 0
-#     else :
-#         return 1
 
-# def replaceMicro(column):
-    # q1 = column.quantile(0.25)
-    # median = column.quantile(0.5)
-    # q4 = column.quantile(0.75)
-#     column = column.apply(replaceQuartiles,args = (q1,median,q4))
-
+#I just run python datasetCreation.py and test here
 dc = datasetCreation(skip_int = 0,reload = True)
 df = dc.datasetCreation()
 dfCP = df[df['res'] == 1]
@@ -148,7 +124,7 @@ df['interPupil'] = kmeans2.predict(X2)
 # train,test = df.iloc[:split], df.iloc[split:]
 # train_outputs, test_outputs = condition[:split], condition[split:]
 
-
+# usefull commands
 # df.groupby(['blink','res']).size()
 # df['word'].value_counts()
 # sort= df.sort_values(['blink','res'],ascending = True)

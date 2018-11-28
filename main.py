@@ -7,6 +7,7 @@ from keras.layers import Dropout
 from keras import optimizers
 import numpy
 
+
 numpy.random.seed(7)
 skip_int = 0
 
@@ -53,7 +54,7 @@ results = pd.concat([dfPredict,Ytest.reset_index()],axis=1)
 #we get the TP and FP in the dataframe 'results'
 results['TP'] = (results.pred > 0.5) & (results.res == 1)
 results['FP'] = (results.pred > 0.5) & (results.res == 0)
-print('False positive',results[results['FP'] == True])
+print('False positive\n',results[results['FP'] == True])
 #value_counts() = [number of False, number of True]
 TP = results['TP'].value_counts()[True]
 #had an error when no FP so had to do a condition

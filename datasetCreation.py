@@ -43,17 +43,17 @@ class datasetCreation :
         #rename the columns beacause it is easier to manipulate
         df.columns = ['blink','microssacade','interPupil','res']
         #I use a first classification before K-means bc when you don't blink you have way less chances to be CP
-        df['blink'] = df['blink'].apply(self.replaceBlink)
+        # df['blink'] = df['blink'].apply(self.replaceBlink)
         #we use kmeans here on every columnn one by one, the number of clusters is chosen by me (I look what seems the best)
-        Xb,Xm,Xi = df[['blink','res']],df[['microssacade','res']],df[['interPupil','res']]
-        kmeansb,kmeansm,kmeansi = KMeans(n_clusters=3, random_state=0).fit(Xb),KMeans(n_clusters=4, random_state=0).fit(Xm),KMeans(n_clusters=4, random_state=0).fit(Xi)
-        df['blink'] = kmeansb.predict(Xb)
-        df['microssacade'] = kmeansm.predict(Xm)
-        df['interPupil'] = kmeansi.predict(Xi)
-        #print the centers to analyze bad points later
-        print('kmeansB',kmeansb.cluster_centers_)
-        print('kmeansM',kmeansm.cluster_centers_)
-        print('kmeansI',kmeansi.cluster_centers_)
+        # Xb,Xm,Xi = df[['blink','res']],df[['microssacade','res']],df[['interPupil','res']]
+        # kmeansb,kmeansm,kmeansi = KMeans(n_clusters=3, random_state=0).fit(Xb),KMeans(n_clusters=4, random_state=0).fit(Xm),KMeans(n_clusters=4, random_state=0).fit(Xi)
+        # df['blink'] = kmeansb.predict(Xb)
+        # df['microssacade'] = kmeansm.predict(Xm)
+        # df['interPupil'] = kmeansi.predict(Xi)
+        # #print the centers to analyze bad points later
+        # print('kmeansB',kmeansb.cluster_centers_)
+        # print('kmeansM',kmeansm.cluster_centers_)
+        # print('kmeansI',kmeansi.cluster_centers_)
         tAfterC = time.time()
         print('finished cleaning in : ', tAfterC - tBeforeC)
         return df
@@ -79,7 +79,7 @@ class datasetCreation :
         # dfCNP = shuffle(dfCNP)
         #less CNP so 90% used 10% testing
         #issue : we want to train on same number of CP than CNP
-        split = round((dfCNP.shape[0])*.7)
+        split = round((dfCNP.shape[0])*.9)
         trainCP,trainCNP = dfCP.iloc[:split],dfCNP.iloc[:split]
         Xtrain = pd.concat([trainCP,trainCNP])
         Ytrain = Xtrain['res']

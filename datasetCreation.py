@@ -17,7 +17,7 @@ class datasetCreation :
             self.interpPupilL = pd.read_csv("interpPupilL.csv", sep=",",header = None, skiprows = skip_int,usecols = [*range(6000,9000)])
             self.condition = pd.read_csv("condition.csv", sep=",",header = None, skiprows = skip_int, names = ['res'])
             tAfterL = time.time()
-            print('finished loading in : ', tAfterL - tBeforeL)
+            # print('finished loading in : ', tAfterL - tBeforeL)
 
     def replaceBlink(self,value):
         if value == 0 :
@@ -27,7 +27,7 @@ class datasetCreation :
 
 
 
-    def datasetCreation(self):
+    def datasetCreation(self,splitNumber):
         ''' key function : we take the mean of blink,microssacade and interPupilL,
         use K-means on them to find what influences the most CNP or CP and classify according to the value'''
         tBeforeC = time.time()
@@ -35,13 +35,14 @@ class datasetCreation :
         self.condition[self.condition['res']=='CP'] = 1
         self.condition[self.condition['res']=='CNP'] = 0
         #those 3 csv are just sumed up in 1 value which is the average
-        self.rawBlinkLogicalL = self.rawBlinkLogicalL.groupby(np.arange(len(self.rawBlinkLogicalL.columns))//3000, axis=1).mean()*100
-        self.microsaccadeBinoc = self.microsaccadeBinoc.groupby(np.arange(len(self.microsaccadeBinoc.columns))//3000, axis=1).mean()*100
-        self.interpPupilL = self.interpPupilL.groupby(np.arange(len(self.interpPupilL.columns))//3000, axis=1).mean()
+        self.rawBlinkLogicalL = self.rawBlinkLogicalL.groupby(np.arange(len(self.rawBlinkLogicalL.columns))//splitNumber, axis=1).mean()
+        self.microsaccadeBinoc = self.microsaccadeBinoc.groupby(np.arange(len(self.microsaccadeBinoc.columns))//splitNumber, axis=1).mean()
+        self.interpPupilL = self.interpPupilL.groupby(np.arange(len(self.interpPupilL.columns))//splitNumber, axis=1).mean()
         #merge the 3 values and the result in df
         df = pd.concat([self.rawBlinkLogicalL,self.microsaccadeBinoc,self.interpPupilL,self.condition],axis=1,join = 'inner')
         #rename the columns beacause it is easier to manipulate
-        df.columns = ['blink','microssacade','interPupil','res']
+        # df.columns = ['blink','microssacade','interPupil','res']
+
         #I use a first classification before K-means bc when you don't blink you have way less chances to be CP
         # df['blink'] = df['blink'].apply(self.replaceBlink)
         #we use kmeans here on every columnn one by one, the number of clusters is chosen by me (I look what seems the best)
@@ -55,7 +56,7 @@ class datasetCreation :
         # print('kmeansM',kmeansm.cluster_centers_)
         # print('kmeansI',kmeansi.cluster_centers_)
         tAfterC = time.time()
-        print('finished cleaning in : ', tAfterC - tBeforeC)
+        # print('finished cleaning in : ', tAfterC - tBeforeC)
         return df
 
     def saveDataframe(self,df) :
@@ -80,32 +81,40 @@ class datasetCreation :
         #less CNP so 90% used 10% testing
         #issue : we want to train on same number of CP than CNP
         split = round((dfCNP.shape[0])*.9)
+
+        dfShuffled = shuffle(df)
+        Xtrain = dfShuffled[split:]
+        Xtest = dfShuffled[:split]
+
         trainCP,trainCNP = dfCP.iloc[:split],dfCNP.iloc[:split]
         Xtrain = pd.concat([trainCP,trainCNP])
+
         Ytrain = Xtrain['res']
         Xtrain = Xtrain.drop('res',axis =1)
-        testCNP = dfCNP.iloc[split:]
-        #we want as much CP as CNP (little trick here)
-        rowNbCNP = testCNP.shape[0]
-        testCP = dfCP.iloc[split:split + rowNbCNP]
-        Xtest = pd.concat([testCP,testCNP])
+
+        # testCNP = dfCNP.iloc[split:]
+        # we want as much CP as CNP (little trick here)
+        # rowNbCNP = testCNP.shape[0]
+        # testCP = dfCP.iloc[split:split + rowNbCNP]
+        # Xtest = pd.concat([testCP,testCNP])
+
         Ytest = Xtest['res']
         Xtest = Xtest.drop('res',axis =1)
         return Xtrain,Ytrain,Xtest,Ytest
 
 #I just run python datasetCreation.py and test here
-dc = datasetCreation(skip_int = 0,reload = True)
-df = dc.datasetCreation()
-dfCP = df[df['res'] == 1]
-dfCNP = df[df['res'] == 0]
-X = df[['microssacade','res']]
-X2 = df[['interPupil','res']]
-X3 = df[['blink','res']]
-kmeans = KMeans(n_clusters=4, random_state=0).fit(X)
-kmeans2 = KMeans(n_clusters=4, random_state=0).fit(X2)
-kmeans3 = KMeans(n_clusters=4, random_state=0).fit(X3)
-df['microssacade'] = kmeans.predict(X)
-df['interPupil'] = kmeans2.predict(X2)
+# dc = datasetCreation(skip_int = 0,reload = True)
+# df = dc.datasetCreation()
+# dfCP = df[df['res'] == 1]
+# dfCNP = df[df['res'] == 0]
+# X = df[['microssacade','res']]
+# X2 = df[['interPupil','res']]
+# X3 = df[['blink','res']]
+# kmeans = KMeans(n_clusters=4, random_state=0).fit(X)
+# kmeans2 = KMeans(n_clusters=4, random_state=0).fit(X2)
+# kmeans3 = KMeans(n_clusters=4, random_state=0).fit(X3)
+# df['microssacade'] = kmeans.predict(X)
+# df['interPupil'] = kmeans2.predict(X2)
 
 # dfCP = shuffle(dfCP)
 # dfCNP = shuffle(dfCNP)

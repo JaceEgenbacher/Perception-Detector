@@ -68,26 +68,25 @@ def getProba():
     dataC = datasetCreation(skip_int = skip_int,reload = True)
     df = dataC.datasetCreation(50)
     Xtrain,Ytrain,Xtest,Ytest = dataC.produceSets(df)
-    precision,fp,tp,prediction_prob = results(Xtrain,Ytrain,Xtest,Ytest,20)
+    precision,fp,tp,prediction_prob = results(Xtrain,Ytrain,Xtest,Ytest,50)
     return Ytest,prediction_prob
 
 def results(Xtrain,Ytrain,Xtest,Ytest,epoch):
     model = Sequential()
-    model.add(Dense(512, input_dim=Xtrain.shape[1], activation='relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(512, activation = 'relu'))
-    model.add(Dropout(0.5))
+    model.add(Dense(128, input_dim=Xtrain.shape[1], activation='tanh'))
+    model.add(Dense(256, activation = 'tanh'))
+    model.add(Dense(128, activation = 'tanh'))
     model.add(Dense(1, activation='sigmoid'))
 
-    sgd = optimizers.SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
-    model.compile(loss='binary_crossentropy', optimizer=sgd , metrics=['accuracy'])
-    model.fit(Xtrain, Ytrain,verbose=0, epochs=epoch)
-    predict  = model.predict(Xtest, batch_size=None, verbose=0, steps=None)
+    # sgd = optimizers.SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
+    model.compile(loss='binary_crossentropy', optimizer='Nadam' , metrics=['accuracy'])
+    model.fit(Xtrain, Ytrain,verbose=0, epochs=epoch, batch_size=32)
+    # predict  = model.predict(Xtest, batch_size=None, verbose=0, steps=None)
 
     prediction_prob = model.predict(Xtest)
     prediction = np.array([1 if elt > 0.5 else 0 for elt in prediction_prob])
     cm = confusion_matrix(Ytest, prediction, labels=[0, 1])
-    report = classification_report(Ytest, prediction)
+    # report = classification_report(Ytest, prediction)
     precision = precision_score(Ytest, prediction, pos_label=1)
     fp = cm[0][1]
     tp = cm[1][1]

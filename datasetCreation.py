@@ -74,16 +74,16 @@ class datasetCreation :
 
     def produceSets(self,df):
         '''the dataset has way more CP than CNP so we want to train/test on the same amount of CP than CNP'''
-        dfCP = df[df['res'] == 1]
-        dfCNP = df[df['res'] == 0]
+        dfShuffled = shuffle(df)
+        dfCP = dfShuffled[dfShuffled['res'] == 1]
+        dfCNP = dfShuffled[dfShuffled['res'] == 0]
         # dfCP = shuffle(dfCP)
         # dfCNP = shuffle(dfCNP)
         #less CNP so 90% used 10% testing
         #issue : we want to train on same number of CP than CNP
         split = round((dfCNP.shape[0])*.9)
 
-        dfShuffled = shuffle(df)
-        Xtrain = dfShuffled[split:]
+        # Xtrain = dfShuffled[split:]
         Xtest = dfShuffled[:split]
 
         trainCP,trainCNP = dfCP.iloc[:split],dfCNP.iloc[:split]
